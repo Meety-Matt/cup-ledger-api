@@ -1,0 +1,15 @@
+# Secrets / local config - NEVER commit
+local.settings.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python_packages/
+
+# Azure Functions / editor
+.azure/
+.vscode/
+.funcignore
+*.log
