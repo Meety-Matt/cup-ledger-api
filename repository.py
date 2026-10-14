@@ -32,8 +32,8 @@ class ChampionRepository:
                 for c in self._items.values()
             )
 
-    def create(self, data: dict) -> dict:
-        champion = {"id": str(uuid.uuid4()), **data}
+    def create(self, data: dict, champion_id: Optional[str] = None) -> dict:
+        champion = {"id": champion_id or str(uuid.uuid4()), **data}
         with self._lock:
             self._items[champion["id"]] = champion
         return champion
@@ -106,5 +106,6 @@ def build_seeded_repository() -> ChampionRepository:
         },
     ]
     for sample in samples:
-        repo.create(sample)
+        stable_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"cup-ledger-{sample['season']}"))
+        repo.create(sample, champion_id=stable_id)
     return repo
