@@ -32,7 +32,7 @@ Every request needs an `x-api-key` header. The expected value comes from the `AP
 | notes | string | no |
 | sleeperLeagueId | string | no |
 
-## Run locally
+## How to run locally
 1. Use a project folder that is NOT synced by OneDrive/iCloud.
 2. Create a venv and install dependencies: `pip install -r requirements.txt`
 3. Copy `local.settings.json.example` to `local.settings.json` and set `API_KEY` to a long random value. This file is git-ignored.

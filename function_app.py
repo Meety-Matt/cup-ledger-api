@@ -42,7 +42,7 @@ def require_api_key(handler):
 
     @wraps(handler)
     def wrapper(req: func.HttpRequest) -> func.HttpResponse:
-        expected = os.environ.get("API_KEY", "")
+        expected = os.environ.get("API_KEY", "")  # only accepts api key from the local settings json file
         provided = req.headers.get("x-api-key", "")
         if not expected or not hmac.compare_digest(provided, expected):
             return error_response(401, "Missing or invalid API key.")

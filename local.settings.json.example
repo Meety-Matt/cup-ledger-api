@@ -3,6 +3,6 @@
   "Values": {
     "FUNCTIONS_WORKER_RUNTIME": "python",
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-    "API_KEY": "-gDtUyoWw3ccskIDL2hIEofVi3WGchd3JmAKodvm5Lo"
+    "API_KEY": "put-a-long-random-value-here"
   }
 }
