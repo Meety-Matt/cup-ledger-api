@@ -13,6 +13,8 @@ import azure.functions as func
 
 from repository import build_seeded_repository
 from validation import validate_champion
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 repo = build_seeded_repository()
@@ -33,16 +35,41 @@ def error_response(status: int, message: str, details=None) -> func.HttpResponse
     return json_response(payload, status)
 
 
+_api_key_cache = None
+
+
+def _load_api_key():
+    """Read the expected API key from Key Vault, once per process.
+
+    Returns None if the vault can't be reached, which makes the API reject
+    every request (fail closed) instead of letting anyone in.
+    """
+    global _api_key_cache
+    if _api_key_cache is not None:
+        return _api_key_cache
+
+    vault_url = os.environ.get("KEY_VAULT_URL")
+    if not vault_url:
+        logging.error("KEY_VAULT_URL is not set. Rejecting all requests.")
+        return None
+    try:
+        client = SecretClient(vault_url=vault_url, credential=DefaultAzureCredential())
+        _api_key_cache = client.get_secret("ApiKey").value
+        return _api_key_cache
+    except Exception:
+        logging.exception("Could not read ApiKey from Key Vault. Rejecting all requests.")
+        return None
+
+
 def require_api_key(handler):
     """Reject any request without a valid x-api-key header (401).
 
-    The expected key comes from the API_KEY app setting - never hardcode it.
-    If API_KEY isn't configured, every request is rejected (fail closed).
+    The expected key is read from the ApiKey secret in Key Vault.
     """
 
     @wraps(handler)
     def wrapper(req: func.HttpRequest) -> func.HttpResponse:
-        expected = os.environ.get("API_KEY", "")  # only accepts api key from the local settings json file
+        expected = _load_api_key()
         provided = req.headers.get("x-api-key", "")
         if not expected or not hmac.compare_digest(provided, expected):
             return error_response(401, "Missing or invalid API key.")
