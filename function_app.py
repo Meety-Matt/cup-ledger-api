@@ -15,6 +15,7 @@ from repository import build_seeded_repository
 from validation import validate_champion
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from datetime import datetime, timezone
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 repo = build_seeded_repository()
@@ -151,3 +152,15 @@ def champion_item(req: func.HttpRequest) -> func.HttpResponse:
     # DELETE
     repo.delete(champion_id)
     return json_response({"message": "Champion deleted.", "id": champion_id})
+
+# ---------- batch validation: PATCH /api/champions/validate ----------
+
+@app.route(route="champions/validate", methods=["PATCH"])
+@require_api_key
+def validate_champions(req: func.HttpRequest) -> func.HttpResponse:
+    updated = repo.validate_all()
+    return json_response({
+        "updatedCount": updated,
+        "validatedAt": datetime.now(timezone.utc).isoformat(),
+        "rule": "needsReview is true when pointsFor or record is missing",
+    })

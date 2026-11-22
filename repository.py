@@ -18,6 +18,7 @@ PARTITION = "champion"
 FIELDS = (
     "season", "manager", "teamName", "record", "pointsFor",
     "runnerUp", "plaqueEngraved", "notes", "sleeperLeagueId",
+    "needsReview",
 )
 
 # Seed data, loaded only when the table is empty.
@@ -83,6 +84,7 @@ def _to_champion(entity):
     for field in FIELDS:
         champion[field] = entity.get(field)
     champion["plaqueEngraved"] = bool(champion["plaqueEngraved"])
+    champion["needsReview"] = bool(champion["needsReview"])
     return champion
 
 
@@ -181,6 +183,20 @@ class ChampionRepository:
 
     def count(self):
         return sum(1 for _ in self._all_entities(select=["RowKey"]))
+
+    def validate_all(self):
+        """Set needsReview on every champion. A champion needs review when
+        pointsFor or record is missing. Only changed records are written.
+        Returns how many records changed."""
+        changed = 0
+        for entity in self._all_entities():
+            champion = _to_champion(entity)
+            should_flag = champion["pointsFor"] is None or not champion["record"]
+            if champion["needsReview"] != should_flag:
+                entity["needsReview"] = should_flag
+                self._table.update_entity(entity, mode=UpdateMode.MERGE)
+                changed += 1
+        return changed
 
 
 def build_seeded_repository():
