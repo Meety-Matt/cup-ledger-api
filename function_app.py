@@ -73,6 +73,7 @@ def require_api_key(handler):
         expected = _load_api_key()
         provided = req.headers.get("x-api-key", "")
         if not expected or not hmac.compare_digest(provided, expected):
+            logging.warning("Rejected request to %s: missing or invalid API key", req.url)
             return error_response(401, "Missing or invalid API key.")
         return handler(req)
 
@@ -159,6 +160,7 @@ def champion_item(req: func.HttpRequest) -> func.HttpResponse:
 @require_api_key
 def validate_champions(req: func.HttpRequest) -> func.HttpResponse:
     updated = repo.validate_all()
+    logging.info("ValidationTriggered updatedCount=%d", updated)
     return json_response({
         "updatedCount": updated,
         "validatedAt": datetime.now(timezone.utc).isoformat(),
