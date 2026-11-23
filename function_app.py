@@ -3,6 +3,9 @@
 Tracks the champion of each season of our Sleeper fantasy league.
 All routes require an API key in the `x-api-key` request header.
 """
+from azure.monitor.opentelemetry import configure_azure_monitor
+configure_azure_monitor()
+
 import hmac
 import json
 import logging
