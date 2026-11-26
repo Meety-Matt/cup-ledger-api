@@ -44,6 +44,8 @@ A small REST API that tracks the champion of each season of our Sleeper fantasy 
 3. Store the API key as a secret named `ApiKey` in the vault.
 4. Deploy with the Azure Functions extension in VS Code, or `func azure functionapp publish <app-name>`.
 
+The resource group template in infra/resourcegroup-template.json is an export of the deployed resources. Replace the placeholder email and subscription ID before deploying. The ApiKey secret value is not included and must be set again in Key Vault.
+
 ## API key
 
 Every endpoint requires the `x-api-key` header. The value must match the `ApiKey` secret in Key Vault. A missing or wrong key returns `401`.
