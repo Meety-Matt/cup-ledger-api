@@ -1,45 +1,76 @@
 # Cup Ledger API
 
-A small REST API (Azure Functions, Python) that records the champion of each season of our Sleeper fantasy league. Midterm project for CS432/CY-421 Cloud Computing.
+A small REST API that tracks the champion of each season of our Sleeper fantasy football league. Built with Python on Azure Functions for CS432/CY-421 Cloud Computing.
 
-Data is held in an in-memory repository and resets when the Function App restarts. This is expected for the midterm.
+## What changed from the midterm
 
-## Authentication
-Every request needs an `x-api-key` header. The expected value comes from the `API_KEY` app setting. Missing or wrong keys get `401`.
+- Champions are stored in **Azure Table Storage** instead of memory, so data survives restarts.
+- The API key is stored in **Azure Key Vault** and read through the Function App's managed identity.
+- A new **batch validation** endpoint (`PATCH /api/champions/validate`) flags champions with missing data.
+- A **Logic App** runs the validation on a schedule and sends an email with the result.
+- **Application Insights** records requests, custom events, and dependency calls.
+
+## Project files
+
+- `function_app.py`: routes, API key check, and logging
+- `repository.py`: reads and writes champions in Table Storage
+- `validation.py`: checks the body of POST and PUT requests
+- `host.json`, `requirements.txt`: Functions host settings and dependencies
+- `local.settings.json.example`: template for local settings (no real values)
+
+## Setup
+
+### Prerequisites
+
+- Python 3.13, Azure Functions Core Tools, and the Azure CLI
+- An Azure subscription with a storage account, a Key Vault, and a Function App
+
+### Run locally
+
+1. Sign in to Azure: `az login`
+2. Create a virtual environment and install dependencies:
+3. Copy `local.settings.json.example` to `local.settings.json` and fill in your values:
+   - `TABLE_ACCOUNT_NAME`: the storage account name
+   - `KEY_VAULT_URL`: the vault URL, for example `https://your-vault.vault.azure.net/`
+4. Your account needs the **Storage Table Data Contributor** role on the storage account and the **Key Vault Secrets User** role on the vault.
+5. Start the app: `func start`
+
+`local.settings.json` is git-ignored, so your values stay off GitHub.
+
+### Deploy to Azure
+
+1. Set the same `TABLE_ACCOUNT_NAME` and `KEY_VAULT_URL` values under the Function App's **Environment variables**.
+2. Turn on the Function App's system-assigned identity, then give it **Storage Table Data Contributor** on the storage account and **Key Vault Secrets User** on the vault.
+3. Store the API key as a secret named `ApiKey` in the vault.
+4. Deploy with the Azure Functions extension in VS Code, or `func azure functionapp publish <app-name>`.
+
+## API key
+
+Every endpoint requires the `x-api-key` header. The value must match the `ApiKey` secret in Key Vault. A missing or wrong key returns `401`.
 
 ## Endpoints
-| Method | Route | Success | Errors |
-|---|---|---|---|
-| POST | `/api/champions` | 201 | 400, 401, 409 |
-| GET | `/api/champions` (`?manager=`) | 200 | 401 |
-| GET | `/api/champions/{id}` | 200 | 401, 404 |
-| PUT | `/api/champions/{id}` | 200 | 400, 401, 404, 409 |
-| DELETE | `/api/champions/{id}` | 200 | 401, 404 |
-| DELETE | `/api/champions` (purge) | 200 | 401 |
-| GET | `/api/champions/count` | 200 | 401 |
 
-## Champion model
-| Field | Type | Required |
+Base URL: `https://<your-app>.azurewebsites.net/api`
+
+| Method | Route | Purpose |
 |---|---|---|
-| id | string (GUID, server-generated) | - |
-| season | integer, 1995 to next year, unique | yes |
-| manager | string | yes |
-| teamName | string | yes |
-| record | string, e.g. "11-3" | no |
-| pointsFor | number >= 0 | no |
-| runnerUp | string | no |
-| plaqueEngraved | boolean (default false) | no |
-| notes | string | no |
-| sleeperLeagueId | string | no |
+| POST | `/champions` | Create a champion (201) |
+| GET | `/champions` | List champions, newest season first. Optional `?manager=` filter |
+| GET | `/champions/{id}` | Get one champion |
+| PUT | `/champions/{id}` | Replace a champion |
+| DELETE | `/champions/{id}` | Delete a champion |
+| DELETE | `/champions` | Purge all champions |
+| GET | `/champions/count` | Count champions |
+| PATCH | `/champions/validate` | Run batch validation and return `updatedCount` and `validatedAt` |
 
-## How to run locally
-1. Use a project folder that is NOT synced by OneDrive/iCloud.
-2. Create a venv and install dependencies: `pip install -r requirements.txt`
-3. Copy `local.settings.json.example` to `local.settings.json` and set `API_KEY` to a long random value. This file is git-ignored.
-4. `func start`, then call `http://localhost:7071/api/champions` with the header.
+Status codes: `200`, `201`, `400` (invalid body), `401` (bad key), `404` (not found), `409` (season already exists).
 
-## Deploy to Azure
-1. In VS Code, open the Azure extension, then Create Function App in Azure (Python, a version Azure Functions supports).
-2. Deploy to Function App.
-3. In the portal, open Function App > Environment variables and add `API_KEY` with a long random value, then save.
-4. Base URL: `https://<your-app-name>.azurewebsites.net/api`
+## Validation rule
+
+A champion is flagged with `needsReview: true` when `pointsFor` or `record` is missing. The `PATCH /champions/validate` endpoint recalculates the flag for every champion and saves only the ones that changed. The response includes `updatedCount` and a UTC timestamp.
+
+`needsReview` is set by the server and can't be set through POST or PUT.
+
+## Documentation
+
+The full project documentation, including test evidence and deployment notes, is in the submitted report.
